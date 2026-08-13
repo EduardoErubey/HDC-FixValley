@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fix Valley — Inventario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1720;
+    --panel:#161F2B;
+    --panel-2:#1D2836;
+    --line:#2A3646;
+    --text:#E7EDF3;
+    --muted:#8FA1B3;
+    --teal:#2DD4BF;
+    --teal-dim:#164E48;
+    --amber:#F5A524;
+    --red:#F0546B;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header{
+    position:sticky;top:0;z-index:10;
+    background:linear-gradient(180deg,var(--bg) 80%,transparent);
+    padding:18px 16px 10px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .top-row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .brand{display:flex;flex-direction:column;line-height:1.15;}
+  .brand small{color:var(--teal);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;font-size:11px;text-transform:uppercase;}
+  .brand h1{font-size:20px;}
+  .icon-btn{
+    background:var(--panel);border:1px solid var(--line);color:var(--text);
+    width:38px;height:38px;border-radius:var(--radius);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
+  .icon-btn:hover{border-color:var(--teal);}
+
+  input,select{
+    background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:var(--radius);padding:10px 12px;font-size:14px;font-family:inherit;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--teal);}
+
+  .search-row{display:flex;gap:8px;}
+  .search-row input{flex:1;}
+  .filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+  .filters select{flex:none;min-width:120px;}
+
+  .summary{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+    padding:0 16px 12px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:10px 12px;
+  }
+  .stat .num{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;}
+  .stat .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .stat.alert .num{color:var(--red);}
+
+  main{padding:0 16px 90px;}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;
+    cursor:pointer;
+  }
+  .card:hover{border-color:var(--teal);}
+  .card.low{border-color:var(--red);}
+  .card .path{color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace;}
+  .card .title{font-weight:600;font-size:15px;margin-top:2px;}
+  .card .tags{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    font-size:11px;padding:2px 7px;border-radius:20px;font-family:'IBM Plex Mono',monospace;
+  }
+  .card .right{text-align:right;flex:none;min-width:84px;}
+  .card .stock{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;}
+  .card.low .stock{color:var(--red);}
+  .card .stock-label{color:var(--muted);font-size:10px;text-transform:uppercase;}
+  .card .price{font-size:12px;color:var(--muted);margin-top:6px;}
+  .card .profit{color:var(--teal);font-weight:600;}
+
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;}
+  .empty button{margin-top:14px;}
+
+  .fab{
+    position:fixed;bottom:20px;right:20px;
+    background:var(--teal);color:#06231F;border:none;
+    width:56px;height:56px;border-radius:50%;font-size:26px;font-weight:700;
+    cursor:pointer;box-shadow:0 6px 18px rgba(45,212,191,.35);
+  }
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(6,10,15,.7);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    background:var(--panel);border-top:1px solid var(--line);
+    width:100%;max-width:480px;border-radius:16px 16px 0 0;
+    padding:20px 18px 24px;max-height:88vh;overflow-y:auto;
+  }
+  @media(min-width:520px){
+    .overlay{align-items:center;}
+    .sheet{border-radius:16px;}
+  }
+  .sheet h2{font-size:18px;margin-bottom:14px;}
+  .field{margin-bottom:12px;display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:12px;color:var(--muted);}
+  .field input,.field select{width:100%;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .actions{display:flex;gap:10px;margin-top:16px;}
+  button.primary{
+    flex:1;background:var(--teal);color:#06231F;border:none;border-radius:var(--radius);
+    padding:12px;font-weight:600;font-size:14px;cursor:pointer;
+  }
+  button.ghost{
+    flex:1;background:transparent;color:var(--muted);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px;font-weight:600;font-size:14px;cursor:pointer;
+  }
+  button.danger{color:var(--red);border-color:var(--red);}
+  .calc{font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:10px;}
+  .calc span{color:var(--teal);font-weight:600;}
+
+  .config-note{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:14px;}
+  .config-note code{background:var(--panel-2);padding:1px 5px;border-radius:4px;}
+  .status{font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px;display:none;}
+  .status.show{display:block;}
+  .status.err{background:rgba(240,84,107,.15);color:var(--red);}
+  .status.ok{background:rgba(45,212,191,.15);color:var(--teal);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <div class="brand">
+      <small>Hospital de Celulares</small>
+      <h1>Fix Valley — Inventario</h1>
+    </div>
+    <button class="icon-btn" id="btnConfig" title="Configuración">⚙</button>
+  </div>
+  <div class="search-row">
+    <input type="text" id="search" placeholder="Buscar por marca, tipo, SKU...">
+  </div>
+  <div class="filters">
+    <select id="fCategoria"><option value="">Todas las categorías</option></select>
+    <select id="fMarca"><option value="">Todas las marcas</option></select>
+    <select id="fLow"><option value="">Todo el stock</option><option value="low">Solo bajo mínimo</option></select>
+  </div>
+</header>
+
+<div class="summary">
+  <div class="stat"><div class="num" id="sTotal">0</div><div class="label">Artículos</div></div>
+  <div class="stat"><div class="num" id="sCosto">$0</div><div class="label">Valor (costo)</div></div>
+  <div class="stat"><div class="num" id="sGanancia">$0</div><div class="label">Ganancia potencial</div></div>
+  <div class="stat alert"><div class="num" id="sBajo">0</div><div class="label">Bajo mínimo</div></div>
+</div>
+
+<main id="list"></main>
+
+<button class="fab" id="btnAdd">+</button>
+
+<!-- Modal: configuración -->
+<div class="overlay" id="overlayConfig">
+  <div class="sheet">
+    <h2>Configuración</h2>
+    <p class="config-note">
+      Pega aquí la URL de tu aplicación web de Google Apps Script (la que copiaste al hacer
+      "Implementar > Nueva implementación"). Se guarda solo en este dispositivo, así que tu
+      hermano tendrá que pegarla también en el suyo — ambos apuntarán a la misma hoja de cálculo.
+    </p>
+    <div class="field">
+      <label>URL de la API (Apps Script)</label>
+      <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+    </div>
+    <div class="actions">
+      <button class="ghost" id="btnCancelConfig">Cancelar</button>
+      <button class="primary" id="btnSaveConfig">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: artículo -->
+<div class="overlay" id="overlayForm">
+  <div class="sheet">
+    <h2 id="formTitle">Nuevo artículo</h2>
+    <div class="status" id="formStatus"></div>
+    <div class="field">
+      <label>Categoría</label>
+      <input type="text" id="fCategoria2" list="listCategorias" placeholder="ej. Cargadores">
+      <datalist id="listCategorias"></datalist>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Marca</label>
+        <input type="text" id="fMarca2" list="listMarcas" placeholder="ej. 1Hora">
+        <datalist id="listMarcas"></datalist>
+      </div>
+      <div class="field">
+        <label>Tipo</label>
+        <input type="text" id="fTipo" placeholder="ej. USB-Tipo C">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Especificación (voltaje, etc.)</label>
+        <input type="text" id="fEsp" placeholder="ej. 18W">
+      </div>
+      <div class="field">
+        <label>Color</label>
+        <input type="text" id="fColor" placeholder="ej. Blanco">
+      </div>
+    </div>
+    <div class="field">
+      <label>SKU / código interno (opcional)</label>
+      <input type="text" id="fSku" placeholder="ej. CARG-1H-TC-18W-BL">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Costo ($)</label>
+        <input type="number" step="0.01" id="fCosto" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Precio de venta ($)</label>
+        <input type="number" step="0.01" id="fPrecio" placeholder="0.00">
+      </div>
+    </div>
+    <div class="calc" id="calcGanancia">Ganancia por unidad: <span>$0.00</span></div>
+    <div class="row2">
+      <div class="field">
+        <label>Stock actual</label>
+        <input type="number" id="fStock" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Stock mínimo (para avisarte)</label>
+        <input type="number" id="fStockMin" placeholder="0">
+      </div>
+    </div>
+    <div class="field">
+      <label>Ubicación (opcional)</label>
+      <input type="text" id="fUbicacion" placeholder="ej. Vitrina 2, charola B">
+    </div>
+    <div class="actions">
+      <button class="ghost danger" id="btnDelete" style="display:none;">Eliminar</button>
+      <button class="primary" id="btnSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_URL = localStorage.getItem('fv_api_url') || '';
+let ARTICULOS = [];
+let editingId = null;
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- Configuración ----------
+$('btnConfig').onclick = () => {
+  $('apiUrl').value = API_URL;
+  $('overlayConfig').classList.add('show');
+};
+$('btnCancelConfig').onclick = () => $('overlayConfig').classList.remove('show');
+$('btnSaveConfig').onclick = () => {
+  API_URL = $('apiUrl').value.trim();
+  localStorage.setItem('fv_api_url', API_URL);
+  $('overlayConfig').classList.remove('show');
+  cargarDatos();
+};
+
+// ---------- Carga de datos ----------
+async function cargarDatos() {
+  if (!API_URL) {
+    $('list').innerHTML = `<div class="empty">
+      <h3>Aún no está conectada la base de datos</h3>
+      <p>Toca el ícono ⚙ arriba y pega la URL de tu Apps Script.</p>
+    </div>`;
+    return;
+  }
+  $('list').innerHTML = `<div class="empty">Cargando inventario...</div>`;
+  try {
+    const res = await fetch(API_URL + '?action=list');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Error desconocido');
+    ARTICULOS = json.data;
+    poblarFiltros();
+    render();
+  } catch (err) {
+    $('list').innerHTML = `<div class="empty">
+      <h3>No se pudo cargar el inventario</h3>
+      <p>${err.message}</p>
+    </div>`;
+  }
+}
+
+function poblarFiltros() {
+  const cats = [...new Set(ARTICULOS.map(a => a.Categoria).filter(Boolean))].sort();
+  const marcas = [...new Set(ARTICULOS.map(a => a.Marca).filter(Boolean))].sort();
+  $('fCategoria').innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option>${c}</option>`).join('');
+  $('fMarca').innerHTML = '<option value="">Todas las marcas</option>' + marcas.map(m => `<option>${m}</option>`).join('');
+  $('listCategorias').innerHTML = cats.map(c => `<option value="${c}">`).join('');
+  $('listMarcas').innerHTML = marcas.map(m => `<option value="${m}">`).join('');
+}
+
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const fc = $('fCategoria').value;
+  const fm = $('fMarca').value;
+  const fl = $('fLow').value;
+
+  let items = ARTICULOS.filter(a => {
+    if (fc && a.Categoria !== fc) return false;
+    if (fm && a.Marca !== fm) return false;
+    if (fl === 'low' && !(Number(a.Stock) <= Number(a.StockMinimo))) return false;
+    if (q) {
+      const hay = [a.Categoria, a.Marca, a.Tipo, a.Especificacion, a.Color, a.SKU].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // resumen (sobre TODO el inventario, no solo lo filtrado)
+  const totalCosto = ARTICULOS.reduce((s, a) => s + Number(a.Costo) * Number(a.Stock), 0);
+  const totalGanancia = ARTICULOS.reduce((s, a) => s + (Number(a.PrecioVenta) - Number(a.Costo)) * Number(a.Stock), 0);
+  const bajos = ARTICULOS.filter(a => Number(a.Stock) <= Number(a.StockMinimo)).length;
+  $('sTotal').textContent = ARTICULOS.length;
+  $('sCosto').textContent = '$' + totalCosto.toLocaleString('es-MX', {maximumFractionDigits:0});
+  $('sGanancia').textContent = '$' + totalGanancia.toLocaleString('es-MX', {maximumFractionDigits:0});
+  $('sBajo').textContent = bajos;
+
+  if (items.length === 0) {
+    $('list').innerHTML = `<div class="empty">
+      <h3>No hay artículos que coincidan</h3>
+      <p>Ajusta la búsqueda o agrega uno nuevo con el botón +.</p>
+    </div>`;
+    return;
+  }
+
+  items.sort((a,b) => (a.Categoria+a.Marca).localeCompare(b.Categoria+b.Marca));
+
+  $('list').innerHTML = items.map(a => {
+    const low = Number(a.Stock) <= Number(a.StockMinimo);
+    const ganancia = Number(a.PrecioVenta) - Number(a.Costo);
+    return `<div class="card ${low ? 'low' : ''}" data-id="${a.ID}">
+      <div>
+        <div class="path">${a.Categoria} › ${a.Marca}</div>
+        <div class="title">${a.Tipo}${a.Especificacion ? ' · ' + a.Especificacion : ''}${a.Color ? ' · ' + a.Color : ''}</div>
+        <div class="tags">
+          ${a.SKU ? `<span class="tag">${a.SKU}</span>` : ''}
+          ${a.Ubicacion ? `<span class="tag">📍 ${a.Ubicacion}</span>` : ''}
+        </div>
+        <div class="price">Costo $${Number(a.Costo).toFixed(2)} · Venta $${Number(a.PrecioVenta).toFixed(2)} · <span class="profit">+$${ganancia.toFixed(2)}</span></div>
+      </div>
+      <div class="right">
+        <div class="stock">${a.Stock}</div>
+        <div class="stock-label">${low ? '¡Resurtir!' : 'en stock'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.card').forEach(card => {
+    card.onclick = () => abrirEdicion(card.dataset.id);
+  });
+}
+
+['search','fCategoria','fMarca','fLow'].forEach(id => $(id).addEventListener('input', render));
+
+// ---------- Alta / edición ----------
+function limpiarForm() {
+  editingId = null;
+  $('formTitle').textContent = 'Nuevo artículo';
+  $('btnDelete').style.display = 'none';
+  ['fCategoria2','fMarca2','fTipo','fEsp','fColor','fSku','fUbicacion'].forEach(id => $(id).value = '');
+  $('fCosto').value = '';
+  $('fPrecio').value = '';
+  $('fStock').value = '';
+  $('fStockMin').value = '';
+  $('formStatus').className = 'status';
+  actualizarCalculo();
+}
+
+$('btnAdd').onclick = () => {
+  if (!API_URL) { $('btnConfig').click(); return; }
+  limpiarForm();
+  $('overlayForm').classList.add('show');
+};
+
+function abrirEdicion(id) {
+  const a = ARTICULOS.find(x => x.ID === id);
+  if (!a) return;
+  editingId = id;
+  $('formTitle').textContent = 'Editar artículo';
+  $('btnDelete').style.display = 'block';
+  $('fCategoria2').value = a.Categoria;
+  $('fMarca2').value = a.Marca;
+  $('fTipo').value = a.Tipo;
+  $('fEsp').value = a.Especificacion;
+  $('fColor').value = a.Color;
+  $('fSku').value = a.SKU;
+  $('fCosto').value = a.Costo;
+  $('fPrecio').value = a.PrecioVenta;
+  $('fStock').value = a.Stock;
+  $('fStockMin').value = a.StockMinimo;
+  $('fUbicacion').value = a.Ubicacion;
+  $('formStatus').className = 'status';
+  actualizarCalculo();
+  $('overlayForm').classList.add('show');
+}
+
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('show'); });
+});
+
+function actualizarCalculo() {
+  const costo = Number($('fCosto').value) || 0;
+  const precio = Number($('fPrecio').value) || 0;
+  $('calcGanancia').innerHTML = `Ganancia por unidad: <span>$${(precio - costo).toFixed(2)}</span>`;
+}
+['fCosto','fPrecio'].forEach(id => $(id).addEventListener('input', actualizarCalculo));
+
+function mostrarStatus(msg, tipo) {
+  const el = $('formStatus');
+  el.textContent = msg;
+  el.className = 'status show ' + tipo;
+}
+
+$('btnSave').onclick = async () => {
+  const data = {
+    ID: editingId,
+    Categoria: $('fCategoria2').value.trim(),
+    Marca: $('fMarca2').value.trim(),
+    Tipo: $('fTipo').value.trim(),
+    Especificacion: $('fEsp').value.trim(),
+    Color: $('fColor').value.trim(),
+    SKU: $('fSku').value.trim(),
+    Costo: $('fCosto').value,
+    PrecioVenta: $('fPrecio').value,
+    Stock: $('fStock').value,
+    StockMinimo: $('fStockMin').value,
+    Ubicacion: $('fUbicacion').value.trim()
+  };
+  if (!data.Categoria || !data.Marca || !data.Tipo) {
+    mostrarStatus('Categoría, marca y tipo son obligatorios.', 'err');
+    return;
+  }
+  mostrarStatus('Guardando...', 'ok');
+  try {
+    const action = editingId ? 'update' : 'add';
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, data })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    $('overlayForm').classList.remove('show');
+    await cargarDatos();
+  } catch (err) {
+    mostrarStatus('Error: ' + err.message, 'err');
+  }
+};
+
+$('btnDelete').onclick = async () => {
+  if (!confirm('¿Eliminar este artículo del inventario?')) return;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id: editingId })
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    $('overlayForm').classList.remove('show');
+    await cargarDatos();
+  } catch (err) {
+    mostrarStatus('Error: ' + err.message, 'err');
+  }
+};
+
+// ---------- Inicio ----------
+cargarDatos();
+</script>
+</body>
+</html>
