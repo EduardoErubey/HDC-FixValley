@@ -431,9 +431,21 @@ function mostrarStatus(msg, tipo) {
   el.className = 'status show ' + tipo;
 }
 
+// Llama a la API siempre por GET (params en la URL) para evitar que el
+// navegador bloquee por CORS las respuestas de POST entre dominios distintos.
+async function callApi(params) {
+  const url = new URL(API_URL);
+  Object.keys(params).forEach(k => {
+    if (params[k] !== undefined && params[k] !== null) url.searchParams.set(k, params[k]);
+  });
+  const res = await fetch(url.toString());
+  return res.json();
+}
+
 $('btnSave').onclick = async () => {
   const data = {
-    ID: editingId,
+    action: editingId ? 'update' : 'add',
+    ID: editingId || '',
     Categoria: $('fCategoria2').value.trim(),
     Marca: $('fMarca2').value.trim(),
     Tipo: $('fTipo').value.trim(),
@@ -452,12 +464,7 @@ $('btnSave').onclick = async () => {
   }
   mostrarStatus('Guardando...', 'ok');
   try {
-    const action = editingId ? 'update' : 'add';
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action, data })
-    });
-    const json = await res.json();
+    const json = await callApi(data);
     if (!json.ok) throw new Error(json.error);
     $('overlayForm').classList.remove('show');
     await cargarDatos();
@@ -469,11 +476,7 @@ $('btnSave').onclick = async () => {
 $('btnDelete').onclick = async () => {
   if (!confirm('¿Eliminar este artículo del inventario?')) return;
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'delete', id: editingId })
-    });
-    const json = await res.json();
+    const json = await callApi({ action: 'delete', id: editingId });
     if (!json.ok) throw new Error(json.error);
     $('overlayForm').classList.remove('show');
     await cargarDatos();
